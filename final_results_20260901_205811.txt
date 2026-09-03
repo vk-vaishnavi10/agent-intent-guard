@@ -1,0 +1,33 @@
+
+======================================================================
+=== multi_split_eval.py ===
+======================================================================
+Evaluated across 10 random splits (mean ± std)
+
+keyword_rule    precision=0.999±0.001  recall=0.874±0.016  f1=0.932±0.009  fpr_indomain=0.000±0.000  
+logreg          precision=0.980±0.007  recall=0.952±0.008  f1=0.966±0.006  auc=0.996±0.001  fpr_indomain=0.002±0.002  
+xgb_full        precision=0.993±0.003  recall=0.988±0.006  f1=0.991±0.003  auc=0.999±0.001  fpr_indomain=0.015±0.004  
+xgb_noKw        precision=0.978±0.005  recall=0.968±0.008  f1=0.973±0.004  auc=0.996±0.001  fpr_indomain=0.028±0.002  
+
+======================================================================
+=== adversarial_test.py ===
+======================================================================
+Loading embedding model...
+Attack rows in test set: 440
+Logistic regression                 recall on original attacks=0.941   recall on PARAPHRASED attacks=0.752
+XGBoost (full features)             recall on original attacks=0.982   recall on PARAPHRASED attacks=0.932
+XGBoost (no keyword feature)        recall on original attacks=0.970   recall on PARAPHRASED attacks=0.968
+Baseline: keyword rule only         recall on original attacks=0.868   recall on PARAPHRASED attacks=0.000
+
+======================================================================
+=== test_length_evasion.py ===
+======================================================================
+Loading embedding model...
+Attack rows in test set: 440
+
+ padding_x   avg_len      LR   XGB_full   XGB_noKw   KeywordRule
+         0       173   0.941      0.982      0.970         0.868
+        10       500   0.970      0.952      0.923         0.868
+        25       500   0.970      0.952      0.923         0.868
+        50       500   0.970      0.952      0.923         0.868
+       100       500   0.970      0.952      0.923         0.868
