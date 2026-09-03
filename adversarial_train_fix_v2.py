@@ -181,3 +181,56 @@ try:
     print(f"FPR baseline={xgb_baseline.predict(Xind).mean():.4f}   FPR symmetric_v2={xgb_v2.predict(Xind).mean():.4f}")
 except FileNotFoundError:
     print("indomain_benign.csv not found - skipping")
+
+# ============================================================
+# OOD GENERALIZATION TEST — held-out, hand-authored, never trained on
+# ============================================================
+print("\n" + "="*60)
+print("OOD GENERALIZATION TEST (ood_generalization_set.csv)")
+print("="*60)
+
+ood_df = pd.read_csv("ood_generalization_set.csv")
+
+def compute_row_features(query, memory):
+    addrs = extract_addrs(memory)
+    return {
+        "memory_len_capped": min(len(memory), 500),
+        "injection_keyword_score": injection_score(memory),
+        "num_foreign_addrs": len(addrs),
+        "has_foreign_addr": 1 if len(addrs) > 0 else 0,
+        "query_memory_similarity": max_query_similarity(query, memory),
+        "starts_with_imperative": starts_with_imperative(memory),
+    }
+
+ood_feats = ood_df.apply(lambda r: compute_row_features(r["query"], r["memory"]), axis=1)
+ood_feats = pd.DataFrame(list(ood_feats))
+for col in feature_cols:
+    ood_df[col] = ood_feats[col]
+
+print("\nSanity check (should be high for address_redirection, low elsewhere):")
+print(ood_df.groupby("subtype")[["has_foreign_addr", "injection_keyword_score", "query_memory_similarity"]].mean())
+
+X_ood = ood_df[feature_cols]
+y_ood = ood_df["label"]
+
+for name, model in [("baseline", xgb_baseline), ("v2_symmetric_adv", xgb_v2)]:
+    preds = model.predict(X_ood)
+    ood_df[f"pred_{name}"] = preds
+
+    benign_mask = y_ood == 0
+    attack_mask = y_ood == 1
+    fpr = (preds[benign_mask] == 1).mean()
+    recall = (preds[attack_mask] == 1).mean()
+
+    print(f"\n--- {name} ---")
+    print(f"Overall attack recall: {recall:.4f}  ({attack_mask.sum()} attack rows)")
+    print(f"Overall benign FPR:    {fpr:.4f}  ({benign_mask.sum()} benign rows)")
+    print("Per-subtype recall:")
+    for subtype in ["address_redirection", "tool_substitution", "security_framing", "amount_manipulation"]:
+        sub_mask = (ood_df["subtype"] == subtype)
+        n = sub_mask.sum()
+        r = (ood_df.loc[sub_mask, f"pred_{name}"] == 1).mean() if n else float("nan")
+        print(f"  {subtype:22s} n={n:2d}  recall={r:.4f}")
+
+ood_df.to_csv("ood_results.csv", index=False)
+print("\nSaved per-row predictions to ood_results.csv")
